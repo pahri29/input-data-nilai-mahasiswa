@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard Input Nilai Mahasiswa</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Nilai Mahasiswa</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -14,7 +14,6 @@
       --bg-secondary: #203a43;
       --bg-accent: #2c5364;
       --text-light: #fff;
-      --text-dark: #000;
     }
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -60,27 +59,35 @@
       background: orange; color: black;
       font-weight: bold; margin-left: 10px;
     }
-    @media (max-width: 600px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      td, th { text-align: left; }
-    }
-    /* Modal Edit */
+
+    /* MODAL */
     #editModal {
       display: none; position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: white; color: black;
+      background: #ffffff; color: #000;
       padding: 20px; border-radius: 10px;
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
-      z-index: 99999; width: 300px;
+      z-index: 9999; width: 320px;
     }
-    #editModal input {
+    #editModal input, #editModal select {
       width: 100%; margin: 5px 0;
+      padding: 8px; border-radius: 6px;
+      border: 1px solid #ccc; box-sizing: border-box;
+    }
+    #editModal .modal-buttons {
+      display: flex; justify-content: space-between;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      td, th { text-align: left; }
     }
   </style>
 </head>
 <body>
   <nav>
-    <h1>Dashboard Input Nilai Mahasiswa</h1>
+    <h1>Dashboard Nilai Mahasiswa</h1>
     <button onclick="toggleDarkMode()">Dark Mode</button>
   </nav>
   <div class="container">
@@ -128,18 +135,23 @@
 
   <!-- Modal Edit -->
   <div id="editModal">
-    <h3>Edit Data Mahasiswa</h3>
     <form id="formEdit">
       <input type="hidden" name="id">
       <input type="text" name="nim" placeholder="NIM" required>
       <input type="text" name="nama" placeholder="Nama" required>
       <input type="text" name="kelas" placeholder="Kelas" required>
-      <input type="text" name="matkul" placeholder="Matkul" required>
+      <select name="matkul" required>
+        <option value="Pemrograman Web">Pemrograman Web</option>
+        <option value="Jaringan Komputer">Jaringan Komputer</option>
+        <option value="Basis Data">Basis Data</option>
+      </select>
       <input type="number" name="uts" placeholder="UTS" required>
       <input type="number" name="uas" placeholder="UAS" required>
-      <input type="text" name="catatan" placeholder="Catatan"><br>
-      <button type="submit" style="background:green;color:white;">Simpan</button>
-      <button type="button" onclick="closeModal()" style="background:gray;color:white;">Batal</button>
+      <input type="text" name="catatan" placeholder="Catatan">
+      <div class="modal-buttons">
+        <button type="submit">Simpan</button>
+        <button type="button" onclick="document.getElementById('editModal').style.display='none'">Batal</button>
+      </div>
     </form>
   </div>
 
@@ -228,24 +240,18 @@
     document.getElementById("editModal").style.display = "block";
   }
 
-  function closeModal() {
-    document.getElementById("editModal").style.display = "none";
-  }
-
   document.getElementById("formEdit").addEventListener("submit", function(e) {
     e.preventDefault();
     const f = new FormData(this);
     const obj = Object.fromEntries(f.entries());
-    obj.uts = +obj.uts;
-    obj.uas = +obj.uas;
-    obj.nilai_akhir = ((obj.uts + obj.uas) / 2).toFixed(2);
+    obj.nilai_akhir = ((+obj.uts + +obj.uas)/2).toFixed(2);
     obj.grade = getGrade(obj.nilai_akhir);
     obj.status = obj.nilai_akhir >= 65 ? "Lulus" : "Tidak Lulus";
 
     const data = getData().map(d => d.id == obj.id ? obj : d);
     saveData(data);
-    closeModal();
-    showToast("Data berhasil diperbarui!");
+    showToast("Data berhasil diupdate!");
+    document.getElementById("editModal").style.display = "none";
     loadData();
   });
 
