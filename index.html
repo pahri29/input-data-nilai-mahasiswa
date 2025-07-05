@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Nilai Mahasiswa</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #0f2027;
+      --bg-secondary: #203a43;
+      --bg-accent: #2c5364;
+      --text-light: #fff;
+      --text-dark: #000;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, var(--bg-color), var(--bg-secondary), var(--bg-accent));
+      color: var(--text-light);
+      margin: 0; padding: 0;
+    }
+    nav {
+      background: rgba(0,0,0,0.7); padding: 12px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    nav h1 { margin: 0; }
+    .container { padding: 20px; }
+    .form-input, .export-btns {
+      background: rgba(255,255,255,0.1); backdrop-filter: blur(6px);
+      padding: 15px; margin-bottom: 20px; border-radius: 10px;
+    }
+    input, select, button {
+      padding: 8px; margin: 5px; border-radius: 6px; border: none; outline: none;
+    }
+    button { font-weight: bold; cursor: pointer; }
+    .btn-edit { background-color: #28a745; color: white; }
+    .btn-hapus { background-color: crimson; color: white; }
+    .btn-export { background-color: #0072ff; color: white; }
+    table {
+      width: 100%; background: rgba(255,255,255,0.1);
+      border-collapse: collapse; border-radius: 10px; overflow: hidden;
+    }
+    th, td {
+      padding: 10px; border: 1px solid rgba(255,255,255,0.2); text-align: center;
+    }
+    th { background-color: #0072ff; color: white; }
+    .badge {
+      padding: 4px 10px; border-radius: 5px; color: white;
+    }
+    .status-lulus { background: green; }
+    .status-tidak { background: crimson; }
+    #toast {
+      position: fixed; top: 20px; right: 20px;
+      padding: 12px 18px; border-radius: 5px;
+      color: white; display: none; z-index: 9999;
+    }
+    #undoBtn {
+      background: orange; color: black;
+      font-weight: bold; margin-left: 10px;
+    }
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      td, th { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>Dashboard Nilai Mahasiswa</h1>
+    <button onclick="toggleDarkMode()">Dark Mode</button>
+  </nav>
+  <div class="container">
+    <div id="toast"></div>
+    <form class="form-input" id="formNilai">
+      <input type="text" name="nim" placeholder="NIM" required>
+      <input type="text" name="nama" placeholder="Nama" required>
+      <input type="text" name="kelas" placeholder="Kelas" required>
+      <select name="matkul" required>
+        <option value="">-- Pilih Mata Kuliah --</option>
+        <option value="Pemrograman Web">Pemrograman Web</option>
+        <option value="Jaringan Komputer">Jaringan Komputer</option>
+        <option value="Basis Data">Basis Data</option>
+      </select>
+      <input type="number" name="uts" placeholder="UTS" required>
+      <input type="number" name="uas" placeholder="UAS" required>
+      <input type="text" name="catatan" placeholder="Catatan">
+      <button type="submit">Tambah</button>
+    </form>
+
+    <div class="export-btns">
+      <button class="btn-export" onclick="loadData()">Refresh</button>
+      <button class="btn-export" onclick="exportExcel()">Export Excel</button>
+      <button class="btn-export" onclick="window.print()">Export PDF</button>
+      <label>Filter Matkul:
+        <select id="filterMatkul" onchange="filterMatkul()">
+          <option value="">Semua</option>
+          <option value="Pemrograman Web">Pemrograman Web</option>
+          <option value="Jaringan Komputer">Jaringan Komputer</option>
+          <option value="Basis Data">Basis Data</option>
+        </select>
+      </label>
+    </div>
+
+    <table id="tabelNilai" class="display">
+      <thead>
+        <tr>
+          <th>No</th><th>NIM</th><th>Nama</th><th>Kelas</th><th>Matkul</th><th>UTS</th><th>UAS</th>
+          <th>Nilai</th><th>Grade</th><th>Status</th><th>Catatan</th><th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+  let lastDeleted = null;
+
+  function showToast(msg, color='#28a745') {
+    const t = document.getElementById("toast");
+    t.innerHTML = msg;
+    t.style.background = color;
+    t.style.display = "block";
+    setTimeout(() => t.style.display = "none", 3000);
+  }
+
+  function toggleDarkMode() {
+    const isDark = document.body.style.background.includes('#0f2027');
+    document.body.style.background = isDark ? '#fff' : 'linear-gradient(to right, #0f2027, #203a43, #2c5364)';
+    document.body.style.color = isDark ? '#000' : '#fff';
+  }
+
+  function getGrade(nilai) {
+    if (nilai >= 85) return 'A';
+    else if (nilai >= 75) return 'B';
+    else if (nilai >= 65) return 'C';
+    else if (nilai >= 50) return 'D';
+    else return 'E';
+  }
+
+  function filterMatkul() {
+    const val = document.getElementById("filterMatkul").value;
+    const table = $('#tabelNilai').DataTable();
+    table.column(4).search(val).draw();
+  }
+
+  document.getElementById("formNilai").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const f = new FormData(this);
+    const obj = Object.fromEntries(f.entries());
+    obj.id = Date.now();
+    obj.nilai_akhir = ((+obj.uts + +obj.uas)/2).toFixed(2);
+    obj.grade = getGrade(obj.nilai_akhir);
+    obj.status = obj.nilai_akhir >= 65 ? "Lulus" : "Tidak Lulus";
+
+    const data = getData();
+    data.push(obj);
+    saveData(data);
+    this.reset();
+    showToast("Data berhasil ditambahkan!");
+    loadData();
+  });
+
+  function getData() {
+    return JSON.parse(localStorage.getItem("nilaiMahasiswa") || "[]");
+  }
+
+  function saveData(data) {
+    localStorage.setItem("nilaiMahasiswa", JSON.stringify(data));
+  }
+
+  function loadData() {
+    const data = getData();
+    const table = $('#tabelNilai').DataTable();
+    table.clear();
+    data.forEach((m, i) => {
+      table.row.add([
+        i+1, m.nim, m.nama, m.kelas, m.matkul, m.uts, m.uas, m.nilai_akhir, m.grade,
+        `<span class="badge ${m.status == 'Lulus' ? 'status-lulus' : 'status-tidak'}">${m.status}</span>`,
+        m.catatan,
+        `<button class='btn-edit' onclick='editData(${JSON.stringify(m)})'>Edit</button>
+         <button class='btn-hapus' onclick='hapusData(${m.id})'>Hapus</button>`
+      ]);
+    });
+    table.draw();
+  }
+
+  function editData(m) {
+    m.nim = prompt("Edit NIM", m.nim);
+    m.nama = prompt("Edit Nama", m.nama);
+    m.kelas = prompt("Edit Kelas", m.kelas);
+    m.matkul = prompt("Edit Matkul", m.matkul);
+    m.uts = prompt("Edit UTS", m.uts);
+    m.uas = prompt("Edit UAS", m.uas);
+    m.catatan = prompt("Edit Catatan", m.catatan);
+    m.nilai_akhir = ((+m.uts + +m.uas)/2).toFixed(2);
+    m.grade = getGrade(m.nilai_akhir);
+    m.status = m.nilai_akhir >= 65 ? "Lulus" : "Tidak Lulus";
+
+    const data = getData().map(d => d.id == m.id ? m : d);
+    saveData(data);
+    showToast("Data berhasil diupdate!");
+    loadData();
+  }
+
+  function hapusData(id) {
+    if (!confirm("Yakin ingin menghapus?")) return;
+    const data = getData();
+    const index = data.findIndex(m => m.id == id);
+    lastDeleted = data[index];
+    data.splice(index, 1);
+    saveData(data);
+    showToast("Data dihapus! <button id='undoBtn' onclick='undoDelete()'>Undo</button>", "#ffc107");
+    loadData();
+  }
+
+  function undoDelete() {
+    if (!lastDeleted) return;
+    const data = getData();
+    data.push(lastDeleted);
+    saveData(data);
+    lastDeleted = null;
+    showToast("Data dipulihkan!", '#17a2b8');
+    loadData();
+  }
+
+  function exportExcel() {
+    const data = getData();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Nilai Mahasiswa");
+    XLSX.writeFile(workbook, "nilai_mahasiswa.xlsx");
+  }
+
+  $(document).ready(() => {
+    $('#tabelNilai').DataTable();
+    loadData();
+  });
+</script>
+</body>
+</html>
