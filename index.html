@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard Input Nilai Mahasiswa</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -19,8 +19,7 @@
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(to right, var(--bg-color), var(--bg-secondary), var(--bg-accent));
-      color: var(--text-light);
-      margin: 0; padding: 0;
+      color: var(--text-light); margin: 0; padding: 0;
     }
     nav {
       background: rgba(0,0,0,0.7); padding: 12px 24px;
@@ -65,6 +64,18 @@
       table, thead, tbody, th, td, tr { display: block; }
       td, th { text-align: left; }
     }
+    /* Modal Edit */
+    #editModal {
+      display: none; position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: white; color: black;
+      padding: 20px; border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      z-index: 99999; width: 300px;
+    }
+    #editModal input {
+      width: 100%; margin: 5px 0;
+    }
   </style>
 </head>
 <body>
@@ -103,7 +114,7 @@
         </select>
       </label>
     </div>
- <h1>Daftar Nilai Mahasiswa</h1>
+
     <table id="tabelNilai" class="display">
       <thead>
         <tr>
@@ -113,6 +124,23 @@
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+
+  <!-- Modal Edit -->
+  <div id="editModal">
+    <h3>Edit Data Mahasiswa</h3>
+    <form id="formEdit">
+      <input type="hidden" name="id">
+      <input type="text" name="nim" placeholder="NIM" required>
+      <input type="text" name="nama" placeholder="Nama" required>
+      <input type="text" name="kelas" placeholder="Kelas" required>
+      <input type="text" name="matkul" placeholder="Matkul" required>
+      <input type="number" name="uts" placeholder="UTS" required>
+      <input type="number" name="uas" placeholder="UAS" required>
+      <input type="text" name="catatan" placeholder="Catatan"><br>
+      <button type="submit" style="background:green;color:white;">Simpan</button>
+      <button type="button" onclick="closeModal()" style="background:gray;color:white;">Batal</button>
+    </form>
   </div>
 
 <script>
@@ -188,22 +216,38 @@
   }
 
   function editData(m) {
-    m.nim = prompt("Edit NIM", m.nim);
-    m.nama = prompt("Edit Nama", m.nama);
-    m.kelas = prompt("Edit Kelas", m.kelas);
-    m.matkul = prompt("Edit Matkul", m.matkul);
-    m.uts = prompt("Edit UTS", m.uts);
-    m.uas = prompt("Edit UAS", m.uas);
-    m.catatan = prompt("Edit Catatan", m.catatan);
-    m.nilai_akhir = ((+m.uts + +m.uas)/2).toFixed(2);
-    m.grade = getGrade(m.nilai_akhir);
-    m.status = m.nilai_akhir >= 65 ? "Lulus" : "Tidak Lulus";
-
-    const data = getData().map(d => d.id == m.id ? m : d);
-    saveData(data);
-    showToast("Data berhasil diupdate!");
-    loadData();
+    const form = document.getElementById("formEdit");
+    form.id.value = m.id;
+    form.nim.value = m.nim;
+    form.nama.value = m.nama;
+    form.kelas.value = m.kelas;
+    form.matkul.value = m.matkul;
+    form.uts.value = m.uts;
+    form.uas.value = m.uas;
+    form.catatan.value = m.catatan;
+    document.getElementById("editModal").style.display = "block";
   }
+
+  function closeModal() {
+    document.getElementById("editModal").style.display = "none";
+  }
+
+  document.getElementById("formEdit").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const f = new FormData(this);
+    const obj = Object.fromEntries(f.entries());
+    obj.uts = +obj.uts;
+    obj.uas = +obj.uas;
+    obj.nilai_akhir = ((obj.uts + obj.uas) / 2).toFixed(2);
+    obj.grade = getGrade(obj.nilai_akhir);
+    obj.status = obj.nilai_akhir >= 65 ? "Lulus" : "Tidak Lulus";
+
+    const data = getData().map(d => d.id == obj.id ? obj : d);
+    saveData(data);
+    closeModal();
+    showToast("Data berhasil diperbarui!");
+    loadData();
+  });
 
   function hapusData(id) {
     if (!confirm("Yakin ingin menghapus?")) return;
